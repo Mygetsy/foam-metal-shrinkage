@@ -1,0 +1,13 @@
+EXE_INC = \
+    -I../../src \
+    -I../../libraries/sigmoidFunction/lnInclude \
+    -I$(LIB_SRC)/transportModels \
+    -I$(LIB_SRC)/transportModels/twoPhaseMixture/lnInclude \
+    -I$(LIB_SRC)/transportModels/incompressible/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude
+
+LIB_LIBS = \
+    -lincompressibleTransportModels \
+    -lfiniteVolume \
+    -L$(FOAM_USER_LIBBIN) \
+    -lsigmoidFunction

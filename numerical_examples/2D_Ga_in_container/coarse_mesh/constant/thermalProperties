@@ -1,0 +1,64 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  dev                                   |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      thermalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Sources:
+//
+metal
+{
+    molWeight       69.73;
+
+    Tmelting        302.78;
+    Tboiling        5000;
+    Tcritical       5000;
+
+    Hfusion         80160;
+    Hvapour         0;
+
+    rhoSolid        6093;
+    rhoLiquid       6093;
+    betaLiquid      -1.2e-4;
+
+    solid
+    {
+        kappaCoeffs (32.0 0);
+        CpCoeffs    (381.5 0);
+    }
+
+    liquid
+    {
+        kappaCoeffs (32.0 0 );
+        CpCoeffs    (381.5  0);
+    }
+}
+
+gas
+{
+    molWeight       28.97;
+    rhoGas          0.4;
+    kappaCoeffs     (6.1e-3  0);
+    CpCoeffs        (381.5 0);
+}
+
+sigmoid         cut; // tanh or cut
+
+solidificationFields
+{
+    enabled     no; // compute and write solidification(Gradient|Speed)
+    alphaTol    0.5;
+}
+
+// ************************************************************************* //

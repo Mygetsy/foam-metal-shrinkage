@@ -1,0 +1,45 @@
+# Compilation files
+*.o
+*.dep
+darwin*
+linux*
+lnInclude*
+
+# Programs files
+*.swp
+
+# Backup files
+*~
+
+# Run files
+log*
+dynamicCode
+polyMesh
+boundary
+postProcessing
+processor*
+[1-9]*
+0.[0-9]*
+*.gz
+*.foam
+*.msh
+*.obj
+
+# Results files
+*.vtk
+*.vtk.series
+*.log
+*.dat
+
+# Graphics
+*.pdf
+*.eps
+*.png
+*.jpg
+
+# Movies
+*.avi
+*.mp4
+
+# Simulation directories
+_*

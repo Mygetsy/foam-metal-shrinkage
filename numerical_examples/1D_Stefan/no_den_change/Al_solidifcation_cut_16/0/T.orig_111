@@ -1,0 +1,86 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2212                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      binary;
+    arch        "LSB;label=32;scalar=64";
+    class       volScalarField;
+    location    "0";
+    object      T;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 1 0 0 0];
+
+internalField   #codeStream
+{
+    codeInclude  /* Headers for compilation */
+      #{
+      #include "fvCFD.H"
+      #};
+
+      codeOptions /* Compilation options */
+      #{
+        -I$(FOAM_SRC)/finiteVolume/lnInclude \
+        -I$(FOAM_SRC)/meshTools/lnInclude
+      #};
+
+      codeLibs  /* Libraries for compilation */
+      #{
+        -lmeshTools \
+        -lfiniteVolume
+      #};
+
+      code  /* User code */
+      #{
+      /* Access to internal mesh information */
+         const IOdictionary& d = static_cast<const IOdictionary&>(dict);
+         const fvMesh& mesh = refCast<const fvMesh>(d.db());
+
+         const scalar start_time = mesh.time().startTime().value();
+         const scalar some_propertie  = d.db().lookupObject<IOdictionary>("transportProperties").subDict("metal").get<scalar>("nu");
+         scalarField p(mesh.nCells(), 0.); /* initialization */
+
+         /* User variables initialization */
+         const scalar rho = 1.2;
+         const scalar gz = 9.81;
+         const scalar z0 = 0.0;
+         const scalar p0 = 101325;
+
+         forAll(p, i) /* Loop on elements */
+         {
+           const scalar z = mesh.C()[i][2]; /* Access to z component of cell centers coordinates */
+           p[i] = p0-rho*gz*(z-z0)*erf(1.)*start_time; /* Pressure assignment for all elements */
+         }
+
+         p.writeEntry("", os); /* Write output in the dictionary */
+
+         #};
+};
+
+boundaryField
+{
+    left
+    {
+	type            zeroGradient;
+    }
+    right
+    {
+        type            fixedValue;
+        value           uniform 468.8;
+    }
+    defaultFaces
+    {
+        type            empty;
+    }
+
+}
+
+
+// ************************************************************************* //
