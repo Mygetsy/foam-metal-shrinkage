@@ -118,7 +118,6 @@ PIMPLE
         {
             tolerance 1e-4;
             relTol 0;
-            
         }
     }
 }

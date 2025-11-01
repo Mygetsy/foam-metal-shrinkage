@@ -42,6 +42,7 @@ SourceFiles
 #include "Polynomial.H"
 
 #include "gasMetalThermalProperties.H"
+#include "surfaceForces.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,10 +60,15 @@ class incompressibleGasMetalMixture
 {
     // Private data
 
-        // Constants
+        // Pointers
+
+            //- Surface tension from TwoPhase Flow of Scheufler and Roenby 2023
+            autoPtr<surfaceForces> surfForcesPtr_;
 
             //- Surface tension as a function of temperature [J/m^2]
             autoPtr<Function1<scalar>> sigmaPtr_;
+
+        // Constants
 
             //- Coefficient related to the permeability of mushy layer [kg/m^3/s]
             const dimensionedScalar mushyCoeff_;
@@ -76,20 +82,15 @@ class incompressibleGasMetalMixture
             //- Metal dictionary
             const dictionary metalDict_;
 
-            //- Flag to evaluate divergence of the velocity field
-            const bool quasiIncompressible_;
-
             //- Melting density change [kg/m^3]
             const scalar rhoJump_;
 
             //- Initial mass at system [kg]
             dimensionedScalar initialMass_;
 
-            //- Mass coerrection coefficent
-            const scalar massCorrectionCoeff_;
+            //- Characteristic mass correction time [s]
+            const dimensionedScalar tauCorr_;
 
-            //- Derivative of density w.r.t. temperature [kg/m^3/K]
-            const Polynomial<2> dRhoMDTSolid_, dRhoMDTLiquid_;
 
         // Fields
 
@@ -107,9 +108,6 @@ class incompressibleGasMetalMixture
 
         //- Returns the Marangoni coefficient [J/m^2/K]
         tmp<volScalarField> dSigmaDT() const;
-
-        //- Returns the derivative of density w.r.t. temperature [kg/m^3/K]
-        tmp<volScalarField> dRhoMDT() const;
 
         //- Calculates the metal density
         scalar rhoM(scalar Tmelting, scalar T, scalar liquidFraction) const;
@@ -145,6 +143,9 @@ public:
     // Member Functions
 
         // Evaluation
+
+            //- Return the surface tension force [N/m^3]
+            tmp<surfaceScalarField> surfaceTensionForce();
 
             //- Return the thermal Marangoni force [N/m^3]
             tmp<volVectorField> marangoniForce() const;

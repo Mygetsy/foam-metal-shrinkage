@@ -22,7 +22,7 @@ ddtSchemes
 
 gradSchemes
 {
-    default         Gauss linear;
+    default         pointCellsLeastSquares;
 }
 
 divSchemes
@@ -48,7 +48,7 @@ laplacianSchemes
 
 interpolationSchemes
 {
-    //default         linear;
+    default         linear;
     flux(U)                     linear;
     interpolate(h)              linear;
     interpolate(nHat)           linear;

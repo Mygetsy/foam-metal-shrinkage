@@ -48,7 +48,7 @@ laplacianSchemes
 
 interpolationSchemes
 {
-    //default         linear;
+    default         linear;
     flux(U)                     linear;
     interpolate(h)              linear;
     interpolate(nHat)           linear;
@@ -69,7 +69,7 @@ interpolationSchemes
 
 snGradSchemes
 {
-    default         limited corrected 0.333;
+    default         limited corrected 0.0;
 }
 
 // ************************************************************************* //

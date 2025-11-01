@@ -73,8 +73,8 @@ pointSample
         type            probes;
         libs  ("libsampling.so");
         setFormat csv;
-        writeControl    timeStep;
-        writeInterval   1;
+        writeControl    adjustableRunTime;
+        writeInterval   0.5;
         probeLocations
         (
             (-0.499 0.05 0.05)  // Replace with your point coordinates
@@ -98,8 +98,8 @@ volIntegrate
 
         writeFields     false;
         writeToFile     true;
-        writeControl    timeStep;
-        writeInterval   1;
+        writeControl    adjustableRunTime;
+        writeInterval   0.5;
     }
 writeTemperature
     {
@@ -108,7 +108,7 @@ writeTemperature
     libs            ("libsampling.so");
     interpolationScheme cell;
     writeControl    adjustableRunTime;
-    writeInterval   2.0;
+    writeInterval   0.5;
 
     fields
     (

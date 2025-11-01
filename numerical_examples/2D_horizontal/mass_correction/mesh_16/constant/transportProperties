@@ -28,7 +28,7 @@ metal
     rhoSolid        2700;
     dRhoDT.solid    (0 0);
     dRhoDT.liquid   (0 0);
-    massCorrectionCoeff 1.5;
+    tauCorr         1e-4;
 }
 
 gas
@@ -40,13 +40,21 @@ gas
 }
 
 sigma
+    {
+        type            constant;
+        sigma           0.87;
+    }
+
+surfaceForces
 {
-    type            temperatureDependent;
-    sigma           polynomial
-    (
-        (0.87     0)
-        (0.0   1)
-    );
+    sigma
+    {
+        type            constant;
+        sigma           0.87;
+    }
+  surfaceTensionForceModel gradAlpha;
+  accelerationForceModel gravity;
+  deltaFunctionModel alphaCSF;
 }
 
 beta            beta            [ K^-1 ] 0.0;

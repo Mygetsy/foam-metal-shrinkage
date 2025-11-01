@@ -28,10 +28,10 @@ metal
 
     Hfusion         383840; 
     Hvapour         0;
-    
+
     rhoSolid        2700;
     rhoLiquid       2475;
-    betaLiquid      -1e-4;
+    betaLiquid      -1.414e-04;
 
     solid
     {

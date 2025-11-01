@@ -31,7 +31,6 @@ solvers
         writeSurfCells  false;
         writeIsoFaces   false;
 
-        nAlphaSmoothCurvature 1;
         nAlphaSubCycles 1;
         cAlpha          1;      // NB: cAlpha is not used by isoAdvector but must be present
     }

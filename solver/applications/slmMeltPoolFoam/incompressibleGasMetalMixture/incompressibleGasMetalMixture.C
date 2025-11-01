@@ -34,6 +34,9 @@ License
 #include "generateGeometricField.H"
 #include "updateGeometricField.H"
 
+#include "fvcSmooth.H"
+#include "surfaceForces.H"
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
@@ -59,17 +62,15 @@ Foam::incompressibleGasMetalMixture::incompressibleGasMetalMixture
 :
     immiscibleIncompressibleTwoPhaseMixture(U, phi),
     gasMetalThermalProperties(U.mesh(), *this),
-    sigmaPtr_(Function1<scalar>::New("sigma", this->subDict("sigma"), &U.mesh())),
+    surfForcesPtr_(autoPtr<surfaceForces>::New(alphaM_,phi,U,*this)),
+    sigmaPtr_(Function1<scalar>::New("sigma", this->subDict("surfaceForces").subDict("sigma"), &U.mesh())),
     mushyCoeff_("mushyCoeff", dimDensity/dimTime, *this),
     qMushyCoeff_("qMushyCoeff", dimless, *this),
     Tcritical_("Tcritical", dimTemperature, thermo().subDict("metal")),
     metalDict_(subDict("metal")),
-    quasiIncompressible_(metalDict_.getOrDefault("quasiIncompressible", false)),
     rhoJump_(rho1_.value() - metalDict_.get<scalar>("rhoSolid")),
     initialMass_("initialMass", dimMass, 0),
-    massCorrectionCoeff_(metalDict_.get<scalar>("massCorrectionCoeff")),
-    dRhoMDTSolid_(metalDict_.lookup(IOobject::groupName("dRhoDT", "solid"))),
-    dRhoMDTLiquid_(metalDict_.lookup(IOobject::groupName("dRhoDT", "liquid"))),
+    tauCorr_("tauCorr",dimTime, metalDict_.get<scalar>("tauCorr")),
     rhoM_(volScalarField::New("rhoM", U.mesh(), rho1_)),
     divPhi_(volScalarField::New("divPhi", U.mesh(), dimensionedScalar(inv(dimTime))))
 
@@ -85,8 +86,6 @@ Foam::incompressibleGasMetalMixture::incompressibleGasMetalMixture
         << " -- Mass in metal = " << initialMass_ .value()  << endl;
 
 
-    if (quasiIncompressible_)
-    {
         // Need for DDt in divPhi()
         T().oldTime();
         liquidFraction().oldTime();
@@ -98,12 +97,6 @@ Foam::incompressibleGasMetalMixture::incompressibleGasMetalMixture
             << " -- Solid metal density at Tmelting = " << rhoM(Tmelting, Tmelting, 0) << endl
             << " -- Solid metal density at " << Tmelting - 1000 << " = "
             << rhoM(Tmelting, Tmelting - 1000, 0) << endl;
-    }
-    else
-    {
-        Info<< " -- Metal density = " << rho1_.value() << endl;
-    }
-    Info<< endl;
 
     // Activate auto-writing of additional fields
     if (writeAllFields_)
@@ -138,24 +131,6 @@ Foam::tmp<Foam::volScalarField> Foam::incompressibleGasMetalMixture::dSigmaDT() 
             return dSigmaDT(T);
         },
         T()
-    );
-}
-
-
-Foam::tmp<Foam::volScalarField> Foam::incompressibleGasMetalMixture::dRhoMDT() const
-{
-    const scalar Tm = thermo().Tmelting().value();
-
-    return generateGeometricField<volScalarField>
-    (
-        "dRhoMDT",
-        T().mesh(),
-        dimDensity/dimTemperature,
-        [this, Tm](scalar T, scalar phi)
-        {
-            return T <= Tm ? dRhoMDTSolid_.value(T) : dRhoMDTLiquid_.value(T);
-        },
-        T(), liquidFraction()
     );
 }
 
@@ -197,10 +172,15 @@ void Foam::incompressibleGasMetalMixture::updateRhoM()
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+Foam::tmp<Foam::surfaceScalarField>  Foam::incompressibleGasMetalMixture::surfaceTensionForce()
+{
+    return surfForcesPtr_->surfaceTensionForce();
+}
+
 
 Foam::tmp<Foam::volVectorField> Foam::incompressibleGasMetalMixture::marangoniForce() const
 {
-    const volVectorField normal(fvc::reconstruct(nHatf()));
+    const volVectorField normal(fvc::reconstruct(surfForcesPtr_->nHatf()));
     const volTensorField I_nn(tensor::I - sqr(normal));
 
     const volVectorField& gradAlphaM = gasMetalThermalProperties::gradAlphaM();
@@ -234,39 +214,25 @@ Foam::tmp<Foam::volScalarField> Foam::incompressibleGasMetalMixture::vapourPress
 
 const Foam::volScalarField& Foam::incompressibleGasMetalMixture::divPhi()
 {
-    if (quasiIncompressible_)
-    {
-	const dimensionedScalar rhoJump("rhoJump", dimDensity, rhoJump_);
-        const dimensionedScalar rhoLiq(thermo().rhoLiquid());
-        const dimensionedScalar beta(thermo().betaLiquid());
+    const dimensionedScalar rhoJump("rhoJump", dimDensity, rhoJump_);
+    const dimensionedScalar rhoLiq(thermo().rhoLiquid());
+    const dimensionedScalar beta(thermo().betaLiquid());
 
-	const dimensionedScalar deltaTime("deltaTime", dimTime, phi_.time().deltaTValue());
-        const dimensionedScalar dMdT = (fvc::domainIntegrate(rhoM_*alphaM_) - initialMass_)/deltaTime;
-        const dimensionedScalar liquidMetalVolume = fvc::domainIntegrate(liquidFraction());
-        const scalar deltaMass = (fvc::domainIntegrate(rhoM_*alphaM_) - initialMass_).value();
-        
-        const dimensionedScalar fluxBoundary("fluxBoundary", dimMass/dimTime, this->patchsFlowRate());
-        const dimensionedScalar dMdTCorrected = dMdT + fluxBoundary;
-        Info<<  "Mass correction:= " << dMdT.value() << endl;
-        // For Debug
-        Info<<  "Flow rate:= " << fluxBoundary.value() << endl;
-        const dimensionedScalar meshVolume("meshVolume", dimVolume, gSum(phi_.mesh().V()));
-        const scalar liquidFractionPart = liquidFraction().weightedAverage(phi_.mesh().Vsc()).value();
-        const scalar SMALLVOLUME = 1e-5;
-        DebugInfo<<  "Mass diffrence:= " << deltaMass << endl;
-        DebugInfo<<  "Liquid volume:= " << liquidMetalVolume.value() << endl;
-        DebugInfo<<  "Epsilon in correction:= " << SMALLVOLUME << endl;
-        DebugInfo<<  "Liquid fraction part:= " << liquidFraction().weightedAverage(phi_.mesh().Vsc()).value() << endl;
-        DebugInfo<<  "Total volume:= " << gSum(phi_.mesh().V()) << endl;
+    const dimensionedScalar meshVolume("meshVolume", dimVolume, gSum(phi_.mesh().V()));
+    const scalar liquidFractionPart = liquidFraction().weightedAverage(phi_.mesh().Vsc()).value();
+    const scalar SMALLVOLUME = 1e-5;
 
-        divPhi_ =
-	(
-              - rhoJump*alphaM_*fvc::DDt(phi_, liquidFractionInMetal())
-              - alphaM_*liquidFractionInMetal()*beta*rhoLiq*fvc::DDt(phi_, T())
-              - massCorrectionCoeff_*liquidFraction()*dMdT/
-	        ((liquidFractionPart + SMALLVOLUME)*meshVolume))
-	        /rhoM_;
-    }
+    const dimensionedScalar massChange = fvc::domainIntegrate(rhoM_*alphaM_) - initialMass_;
+    const dimensionedScalar rhoCorr = massChange/((liquidFractionPart + SMALLVOLUME)*meshVolume);
+    const dimensionedScalar dotRhoCorr = rhoCorr/tauCorr_;
+
+    Info << "Density correction = " << rhoCorr.value() << endl;
+
+    divPhi_ = alphaM_*(
+                   - rhoJump*fvc::DDt(phi_, liquidFractionInMetal())
+                   - liquidFractionInMetal()*beta*rhoLiq*fvc::DDt(phi_, T())
+                   - liquidFractionInMetal()*dotRhoCorr
+                   )/rhoM_;
 
     return divPhi_;
 }
@@ -279,17 +245,14 @@ void Foam::incompressibleGasMetalMixture::correct()
     immiscibleIncompressibleTwoPhaseMixture::correct();
     // gasMetalThermalProperties -> hAtMelting, gradAlphaM
     gasMetalThermalProperties::correct();
+    surfForcesPtr_->correct();
 }
 
 
 void Foam::incompressibleGasMetalMixture::correctThermo()
 {
     gasMetalThermalProperties::correctThermo();
-
-    if (quasiIncompressible_)
-    {
-        updateRhoM();
-    }
+    updateRhoM();
 }
 
 

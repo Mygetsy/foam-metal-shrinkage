@@ -33,7 +33,6 @@ Description
     based on interIsoFoam.
 
 \*---------------------------------------------------------------------------*/
-
 #include "fvCFD.H"
 #include "dynamicFvMesh.H"
 #include "isoAdvection.H"
@@ -51,6 +50,7 @@ Description
 #include "incompressibleGasMetalMixture.H"
 #include "surfaceLaserHeatSource.H"
 #include "movingReferenceFrame.H"
+
 
 // For debug
 auto pp = [](const volScalarField& f)
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         #include "readDyMControls.H"
         #include "CourantNo.H"
         #include "alphaCourantNo.H"
-        #include "temperatureChange.H"
+        #include "keyFieldsStatistics.H"
         #include "setDeltaT.H"
 
         ++runTime;
@@ -102,8 +102,6 @@ int main(int argc, char *argv[])
 
         // --- Calculate time-dependent quantities
         const dimensionedScalar totalEnthalpy = fvc::domainIntegrate(rho*h);
-	const dimensionedScalar initialMass = fvc::domainIntegrate(rho1 * alpha1);
-	dimensionedScalar updatedMass = fvc::domainIntegrate(rho1 * alpha1);
         // NB: SMALL is too small to be used in the denominator
         const volScalarField divUInMetal("divUInMetal", fvc::div(phi)/(alpha1 + ROOTSMALL));
 
@@ -202,9 +200,6 @@ int main(int argc, char *argv[])
 
             laserHeatSource->correct();
 
-            // --- Momentum predictor
-             //#include "UEqn.H"
-
             // --- Enthalpy corrector loop
             label nCorrEnthalpy(readLabel(pimple.dict().lookup("nEnthalpyCorrectors")));
             for (label corrEnthalpy = 1; corrEnthalpy <= nCorrEnthalpy; ++corrEnthalpy)
@@ -217,6 +212,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
+            // --- Momentum predictor
 	        #include "UEqn.H"
             // --- Pressure corrector loop
             while (pimple.correct())
@@ -229,9 +225,6 @@ int main(int argc, char *argv[])
                 turbulence->correct();
             }
         }
-
-        updatedMass.value()  = fvc::domainIntegrate(rho1 * alpha1).value();
-        Info<< "Mass in metal: " << updatedMass.value()  << endl;
 
         #include "updatePassiveFields.H"
         #include "effectiveAbsorptivity.H"
